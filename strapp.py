@@ -126,29 +126,54 @@ def recognize_food_from_image(image, model):
 
     return recognized_food, calorie_info
 
-# Function to generate calorie information using Azure OpenAI Language Model
-def generate_calorie_info(recognized_food):
-    # Define prompt for generating calorie information
-    prompt = f"You have recognized {recognized_food}. Please provide calorie information."
 
-    # Call Azure OpenAI Language Model to generate calorie information
+# Function to generate calorie information using Rag (Retrieve and Generate)
+def generate_calorie_info_rag(openai_client, recognized_food):
+    # Define retrieval and generation prompts
+    retrieval_prompt = f"Retrieve information about the calorie content of {recognized_food} from USDA FoodData Central."
+    generation_prompt = f"Based on the retrieved information, estimate the calorie content of {recognized_food}.Just mention the usda foodcentral  as a source at the end of the response. Give maximum information as possible."
+
+    # Call OpenAI API to perform Rag
     response = openai_client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4-32k",
         temperature=0.3,
         top_p=0.95,
         frequency_penalty=0.0,
         presence_penalty=0.0,
         max_tokens=200,
         messages=[
-            {"role": "system", "content": "Assistant is generating calorie information.Give as much as information possible."},
-            {"role": "user", "content": f"{prompt}"},
+            {"role": "user", "content": f"{retrieval_prompt}"},
+            {"role": "user", "content": f"{generation_prompt}"}
         ]
     )
 
     # Extract calorie information from the response
-    calorie_info = response.choices[0].message.content.strip()
-
+    calorie_info = response.choices[-1].message.content.strip()  # Assuming the last response contains the generated information
     return calorie_info
+
+# Function to recognize food from image using the loaded Keras model
+def recognize_food_from_image(image, model, openai_client):
+    # Preprocess the image
+    img = Image.open(image)
+    img = img.resize((224, 224))  # Assuming your model requires input size of 224x224
+    img_array = np.array(img) / 255.0  # Normalize pixel values
+
+    # Expand dimensions to match the model's expected input shape
+    img_array = np.expand_dims(img_array, axis=0)
+
+    # Make predictions
+    predictions = model.predict(img_array)
+    predicted_class = np.argmax(predictions[0])
+
+    # Return the class label (or name) of the recognized food
+    # You need to define your classes or labels based on your model's output
+    classes = ['Apple Pie', 'Omlette', 'Pizza']  
+    recognized_food = classes[predicted_class]
+
+    # Generate calorie information using Rag
+    calorie_info = generate_calorie_info_rag(openai_client, recognized_food)
+
+    return recognized_food, calorie_info
 
 # Streamlit app
 def main():
@@ -201,11 +226,8 @@ def main():
             st.info("Image uploaded successfully.")
             # Load the model
             model = load_model()
-            # Display uploaded image
-            st.image(uploaded_image, caption='Uploaded Image', use_column_width=True)
-
             # Recognize food from image
-            recognized_food, calorie_info = recognize_food_from_image(uploaded_image, model)
+            recognized_food, calorie_info = recognize_food_from_image(uploaded_image, model, openai_client)
 
             if recognized_food:
                 st.success(f"Food Recognized: {recognized_food}")
