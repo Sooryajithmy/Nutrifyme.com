@@ -102,36 +102,13 @@ def load_model():
     model = tf.keras.models.load_model('model_trained_3class.hdf5')  # Replace 'your_model.h5' with the path to your model file
     return model
 
-# Function to recognize food from image using the loaded Keras model
-def recognize_food_from_image(image, model):
-    # Preprocess the image
-    img = Image.open(image)
-    img = img.resize((224, 224))  # Assuming your model requires input size of 224x224
-    img_array = np.array(img) / 255.0  # Normalize pixel values
-
-    # Expand dimensions to match the model's expected input shape
-    img_array = np.expand_dims(img_array, axis=0)
-
-    # Make predictions
-    predictions = model.predict(img_array)
-    predicted_class = np.argmax(predictions[0])
-
-    # Return the class label (or name) of the recognized food
-    # You need to define your classes or labels based on your model's output
-    classes = ['Apple Pie', 'Omlette', 'Pizza']  # Example: replace with your actual class labels
-    recognized_food = classes[predicted_class]
-
-    # Generate calorie information using Azure OpenAI Language Model
-    calorie_info = generate_calorie_info(recognized_food)
-
-    return recognized_food, calorie_info
 
 
 # Function to generate calorie information using Rag (Retrieve and Generate)
 def generate_calorie_info_rag(openai_client, recognized_food):
     # Define retrieval and generation prompts
     retrieval_prompt = f"Retrieve information about the calorie content of {recognized_food} from USDA FoodData Central."
-    generation_prompt = f"Based on the retrieved information, estimate the calorie content of {recognized_food}.Just mention the usda foodcentral  as a source at the end of the response. Give maximum information as possible."
+    generation_prompt = f"Based on the retrieved information, estimate the calorie content of {recognized_food}.Just mention the usda foodcentral  as a source at the end of the response. Give maximum information as possible.The information should be structured with less words."
 
     # Call OpenAI API to perform Rag
     response = openai_client.chat.completions.create(
